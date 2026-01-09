@@ -2,163 +2,127 @@
 <html lang="zh-TW">
 <head>
 <meta charset="UTF-8">
-<title>Micro:bit 發球機控制台 v2</title>
+<title>Micro:bit 發球機控制台 - 全球雙人即時同步版</title>
+
+<!-- PeerJS 主程式 -->
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+
+<!-- 強制使用台灣穩定 PeerServer -->
+<script>
+window.addEventListener('load', () => {
+  if (window.Peer) {
+    const origInitialize = Peer.prototype._initialize;
+    Peer.prototype._initialize = function() {
+      this._options = this._options || {};
+      this._options.host = 'peer.zeabur.app';
+      this._options.port = 443;
+      this._options.secure = true;
+      this._options.path = '/peerjs';
+      if (origInitialize) origInitialize.call(this);
+      else this._initializeServerConnection();
+    };
+  }
+});
+</script>
+
 <style>
-  body {
-    font-family: system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif;
-    background: #f6f9fc;
-    color: #333;
-    padding: 20px;
-    max-width: 900px;
-    margin: 0 auto;
-  }
-  h1 { text-align: center; color: #fa6400; }
-  .container {
-    background: white;
-    padding: 30px;
-    border-radius: 12px;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-  }
-  .status {
-    padding: 15px;
-    background: #e8f5e8;
-    border-radius: 8px;
-    margin: 20px 0;
-    text-align: center;
-    font-weight: bold;
-  }
-  .grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 20px;
-    margin: 30px 0;
-  }
-  .card {
-    background: #fff;
-    padding: 20px;
-    border-radius: 10px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.08);
-    text-align: center;
-  }
-  .card h3 { margin: 0 0 10px 0; color: #666; font-size: 1.1em; }
-  .card .value { font-size: 2.4em; font-weight: bold; color: #fa6400; }
-
-  .controls {
-    background: #f9f9f9;
-    padding: 25px;
-    border-radius: 10px;
-    margin: 30px 0;
-  }
-  .control-group { margin: 20px 0; }
-  label { display: block; margin-bottom: 8px; font-weight: 600; }
-  input[type="range"] { width: 100%; height: 8px; border-radius: 5px; background: #ddd; outline: none; }
-  select { width: 100%; padding: 12px; font-size: 1.1em; border-radius: 6px; border: 1px solid #ccc; }
-
-  /* Button-5 樣式 */
-  .button-5 {
-    align-items: center;
-    background-clip: padding-box;
-    background-color: #fa6400;
-    border: 1px solid transparent;
-    border-radius: .25rem;
-    box-shadow: rgba(0, 0, 0, 0.02) 0 1px 3px 0;
-    box-sizing: border-box;
-    color: #fff;
-    cursor: pointer;
-    display: inline-flex;
-    font-family: inherit;
-    font-size: 18px;
-    font-weight: 600;
-    justify-content: center;
-    line-height: 1.25;
-    margin: 10px 5px;
-    min-height: 3.5rem;
-    padding: calc(.875rem - 1px) calc(1.5rem - 1px);
-    transition: all 250ms;
-    user-select: none;
-    min-width: 180px;
-  }
-  .button-5:hover { background-color: #fb8332; transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0,0,0,0.15); }
-  .button-5:active { background-color: #c85000; transform: translateY(0); }
-  .button-5.disconnect { background-color: #d32f2f; }
-  .button-5.disconnect:hover { background-color: #e63946; }
-  .button-5.start { background-color: #28a745; }
-  .button-5.stop { background-color: #dc3545; }
-
-  table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-  th, td { padding: 12px; text-align: center; border-bottom: 1px solid #ddd; }
-  th { background-color: #fa6400; color: white; }
-  tr:nth-child(even) { background-color: #f9f9f9; }
+  body {font-family: system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif;background:#f6f9fc;color:#333;padding:20px;max-width:900px;margin:0 auto;}
+  h1 {text-align:center;color:#fa6400;}
+  .container {background:white;padding:30px;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,0.1);}
+  .status {padding:15px;background:#e8f5e8;border-radius:8px;margin:20px 0;text-align:center;font-weight:bold;}
+  .room-section {background:#fff8e1;padding:20px;border-radius:10px;margin:20px 0;border:2px dashed #ffb300;}
+  .room-id {font-size:1.4em;font-weight:bold;color:#d35400;background:#ffe8cc;padding:10px;border-radius:6px;display:inline-block;}
+  .grid {display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:20px;margin:30px 0;}
+  .card {background:#fff;padding:20px;border-radius:10px;box-shadow:0 2px 10px rgba(0,0,0,0.08);text-align:center;}
+  .card h3 {margin:0 0 10px 0;color:#666;font-size:1.1em;}
+  .card .value {font-size:2.4em;font-weight:bold;color:#fa6400;}
+  .command-card {background:#fff3e0;padding:18px;border-radius:10px;box-shadow:0 2px 10px rgba(0,0,0,0.08);text-align:center;border-left:5px solid #ff9800;}
+  .command-card h3 {color:#e67e22;}
+  .command-card .value {font-family:monospace;font-size:1.8em;color:#d35400;background:#fdf0e0;padding:8px 12px;border-radius:6px;}
+  .controls {background:#f9f9f9;padding:25px;border-radius:10px;margin:30px 0;}
+  .control-group {margin:20px 0;}
+  label {display:block;margin-bottom:8px;font-weight:600;}
+  input[type="range"], select, input[type="text"] {width:100%;padding:12px;font-size:1.1em;border-radius:6px;border:1px solid #ccc;}
+  .button-5 {display:inline-flex;align-items:center;justify-content:center;min-height:3.5rem;padding:0.875rem 1.5rem;margin:10px 5px;min-width:160px;background:#fa6400;color:#fff;font-size:18px;font-weight:600;border-radius:0.25rem;border:none;cursor:pointer;transition:all 250ms;}
+  .button-5:hover {background:#fb8332;transform:translateY(-2px);box-shadow:0 8px 20px rgba(0,0,0,0.15);}
+  .button-5.disconnect {background:#d32f2f;}
+  .button-5.disconnect:hover {background:#e63946;}
+  .button-5.start {background:#28a745;}
+  .button-5.stop {background:#dc3545;}
+  .button-5.room {background:#9c27b0;}
+  .button-5.room:hover {background:#8e24aa;}
+  table {width:100%;border-collapse:collapse;margin-top:20px;}
+  th, td {padding:12px;text-align:center;border-bottom:1px solid #ddd;}
+  th {background:#fa6400;color:white;}
+  tr:nth-child(even) {background:#f9f9f9;}
+  .sync-status {color:#2e7d32;font-weight:bold;}
 </style>
 </head>
 <body>
 
 <div class="container">
-  <h1>Micro:bit 發球機控制台</h1>
+  <h1>Micro:bit 發球機控制台（全球雙人同步）</h1>
 
-  <div style="text-align:center; margin:30px 0;">
+  <div style="text-align:center;margin:20px 0;">
     <button id="connectBtn" class="button-5">連接 Micro:bit</button>
     <button id="disconnectBtn" class="button-5 disconnect" disabled>斷開連線</button>
   </div>
+  <div class="status" id="status">尚未連接 Micro:bit</div>
 
-  <div class="status" id="status">尚未連接任何裝置</div>
-
-  <!-- 即時數據卡片 -->
-  <div class="grid">
-    <div class="card">
-      <h3>發球次數</h3>
-      <div class="value" id="serveCount">0</div>
+  <div class="room-section">
+    <h2 style="margin-top:0;color:#d35400;">雙人同步房間</h2>
+    <div id="roomCreate">
+      <button id="createRoomBtn" class="button-5 room">開啟房間</button>
+      <p style="margin:15px 0;">或</p>
+      <input type="text" id="roomInput" placeholder="輸入房間 ID 加入">
+      <button id="joinRoomBtn" class="button-5" style="background:#2196F3;">加入房間</button>
     </div>
-    <div class="card">
-      <h3>發球間隔</h3>
-      <div class="value" id="intervalVal">2000 <small style="font-size:0.5em;">ms</small></div>
-    </div>
-    <div class="card">
-      <h3>練習時間</h3>
-      <div class="value" id="durationTimer">00:00:00</div>
-    </div>
-    <div class="card">
-      <h3>目前模式</h3>
-      <div class="value" id="modeText">follow</div>
+    <div id="roomInfo" style="display:none;margin-top:20px;">
+      <p>房間已開啟！分享以下 ID 給朋友：</p>
+      <div class="room-id" id="myRoomId"></div>
+      <p style="margin-top:10px;"><span class="sync-status" id="syncStatus">等待對方加入...</span></p>
     </div>
   </div>
 
-  <!-- 設定控制區 -->
+  <!-- 即時數據卡片 -->
+  <div class="grid">
+    <div class="card"><h3>發球次數</h3><div class="value" id="serveCount">0</div></div>
+    <div class="card"><h3>發球間隔</h3><div class="value" id="intervalVal">2000 <small>ms</small></div></div>
+    <div class="card"><h3>練習時間</h3><div class="value" id="durationTimer">00:00:00</div></div>
+    <div class="card"><h3>目前模式</h3><div class="value" id="modeText">follow</div></div>
+  </div>
+
+  <!-- 新增：目前傳送指令顯示 -->
+  <div class="command-card">
+    <h3>目前傳送指令</h3>
+    <div class="value" id="currentCommand">未連接</div>
+  </div>
+
   <div class="controls">
-    <h2 style="margin-top:0; color:#fa6400;">設定參數</h2>
-    
+    <h2 style="margin-top:0;color:#fa6400;">設定參數（雙人即時同步）</h2>
     <div class="control-group">
-      <label>發球間隔： <span id="intervalNum">2000</span> ms</label>
+      <label>發球間隔：<span id="intervalNum">2000</span> ms</label>
       <input type="range" id="intervalSlider" min="500" max="5000" step="100" value="2000">
     </div>
-
     <div class="control-group">
       <label>發球模式</label>
       <select id="modeSelect">
-        <option value="0">follow（追頭）</option>
-        <option value="1">deviation（偏移）</option>
-        <option value="2">left（左路）</option>
-        <option value="3">right（右路）</option>
-        <option value="4">middle（中路）</option>
+        <option value="follow">follow（追頭）</option>
+        <option value="deviation">deviation（偏移）</option>
+        <option value="left">left（左路）</option>
+        <option value="right">right（右路）</option>
+        <option value="middle">middle（中路）</option>
       </select>
     </div>
-
-    <div style="text-align:center; margin-top:30px;">
+    <div style="text-align:center;margin-top:30px;">
       <button id="trainBtn" class="button-5 start">開始訓練</button>
     </div>
   </div>
 
-  <!-- 歷史紀錄 -->
-  <h2>歷史紀錄</h2>
+  <h2>歷史紀錄（雙人共享）</h2>
   <table id="historyTable">
     <thead>
-      <tr>
-        <th>日期時間</th>
-        <th>發球次數</th>
-        <th>間隔 (ms)</th>
-        <th>練習時間</th>
-        <th>模式</th>
-      </tr>
+      <tr><th>日期時間</th><th>發球次數</th><th>間隔(ms)</th><th>練習時間</th><th>模式</th></tr>
     </thead>
     <tbody></tbody>
   </table>
@@ -171,53 +135,142 @@ let serveCount = 0;
 let isTraining = false;
 let timerStart = 0;
 let timerInterval = null;
-
+let sendInterval = null;
 let currentInterval = 2000;
-let currentModeNum = 0; // 數字代碼：0~4
+let currentMode = 'follow';
+let peer = null;
+let conn = null;
+let myRoomId = null;
 
-// 模式對應表（用於顯示文字）
-const modeMap = {
-  0: 'follow',
-  1: 'deviation',
-  2: 'left',
-  3: 'right',
-  4: 'middle'
+// 更新指令顯示的函數
+function updateCurrentCommand() {
+  const cmdDisplay = document.getElementById('currentCommand');
+  if (!txChar) {
+    cmdDisplay.textContent = '未連接';
+    cmdDisplay.style.color = '#999';
+  } else if (sendInterval === null) {
+    cmdDisplay.textContent = '已停止';
+    cmdDisplay.style.color = '#e74c3c';
+  } else {
+    const durationStr = isTraining ? 'start' : 'stop';
+    cmdDisplay.textContent = `${currentInterval};${durationStr};${currentMode}`;
+    cmdDisplay.style.color = '#27ae60';
+  }
+}
+
+// ==================== PeerJS 房間系統 ====================
+// （保持不變，略）
+
+document.getElementById('createRoomBtn').onclick = () => {
+  myRoomId = 'tt-' + Math.random().toString(36).substr(2, 6);
+  initPeer(myRoomId);
+  showRoomInfo();
 };
 
-const UART_SERVICE = '6e400001-b5a3-f393-e0a9-e50e24dcca9e';
-const UART_TX = '6e400002-b5a3-f393-e0a9-e50e24dcca9e'; // 寫入
-const UART_RX = '6e400003-b5a3-f393-e0a9-e50e24dcca9e'; // 讀取
+document.getElementById('joinRoomBtn').onclick = () => {
+  const input = document.getElementById('roomInput').value.trim();
+  if (!input) return alert('請輸入房間 ID');
+  myRoomId = input;
+  initPeer(null, input);
+  showRoomInfo();
+};
 
-// ==================== 藍牙連接 ====================
+function showRoomInfo() {
+  document.getElementById('roomCreate').style.display = 'none';
+  document.getElementById('roomInfo').style.display = 'block';
+  document.getElementById('myRoomId').textContent = myRoomId;
+}
+
+function initPeer(myId = null, connectTo = null) {
+  peer = new Peer(myId);
+  peer.on('open', id => {
+    console.log('我的 ID:', id);
+    if (connectTo && id !== connectTo) {
+      conn = peer.connect(connectTo);
+      setupConn(conn);
+    }
+  });
+  peer.on('connection', incoming => {
+    conn = incoming;
+    setupConn(conn);
+  });
+}
+
+function setupConn(connection) {
+  conn = connection;
+  conn.on('open', () => {
+    document.getElementById('syncStatus').textContent = '已連接對方！即時同步中';
+    document.getElementById('syncStatus').style.color = '#2e7d32';
+    broadcast('state', {serveCount, currentInterval, currentMode, isTraining});
+  });
+  conn.on('data', handleRemoteData);
+}
+
+function handleRemoteData(data) {
+  if (data.type === 'state') {
+    serveCount = data.serveCount ?? serveCount;
+    currentInterval = data.currentInterval ?? currentInterval;
+    currentMode = data.currentMode ?? currentMode;
+    isTraining = data.isTraining ?? isTraining;
+    syncUI();
+    updateCurrentCommand(); // 同步後更新指令顯示
+    if (isTraining && !timerInterval) { timerStart = Date.now(); startTimer(); }
+    if (!isTraining && timerInterval) stopTimer();
+  } else if (data.type === 'serve') {
+    serveCount++;
+    document.getElementById('serveCount').textContent = serveCount;
+  } else if (data.type === 'record') {
+    addRemoteRecord(data.record);
+  }
+}
+
+function broadcast(type, data = {}) {
+  if (conn && conn.open) conn.send({type, ...data});
+}
+
+function syncUI() {
+  document.getElementById('serveCount').textContent = serveCount;
+  document.getElementById('intervalNum').textContent = currentInterval;
+  document.getElementById('intervalVal').innerHTML = currentInterval + ' <small>ms</small>';
+  document.getElementById('intervalSlider').value = currentInterval;
+  document.getElementById('modeText').textContent = currentMode;
+  document.getElementById('modeSelect').value = currentMode;
+  const btn = document.getElementById('trainBtn');
+  btn.textContent = isTraining ? '停止訓練' : '開始訓練';
+  btn.className = 'button-5 ' + (isTraining ? 'stop' : 'start');
+  updateCurrentCommand(); // 同步時更新指令顯示
+}
+
+// ==================== Micro:bit 藍牙 ====================
+const UART_SERVICE = '6e400001-b5a3-f393-e0a9-e50e24dcca9e';
+const UART_TX = '6e400002-b5a3-f393-e0a9-e50e24dcca9e';
+const UART_RX = '6e400003-b5a3-f393-e0a9-e50e24dcca9e';
+
 async function connect() {
   try {
     device = await navigator.bluetooth.requestDevice({
       filters: [{ namePrefix: 'BBC micro:bit' }],
       optionalServices: [UART_SERVICE]
     });
-
     const server = await device.gatt.connect();
     const service = await server.getPrimaryService(UART_SERVICE);
     txChar = await service.getCharacteristic(UART_TX);
     rxChar = await service.getCharacteristic(UART_RX);
-
     await rxChar.startNotifications();
     rxChar.addEventListener('characteristicvaluechanged', e => {
       const msg = new TextDecoder().decode(e.target.value).trim();
       if (msg === 'Serve') {
         serveCount++;
         document.getElementById('serveCount').textContent = serveCount;
+        broadcast('serve');
       }
     });
-
     document.getElementById('status').textContent = `已連線：${device.name}`;
     document.getElementById('connectBtn').disabled = true;
     document.getElementById('disconnectBtn').disabled = false;
-
     startSendingLoop();
-  } catch (err) {
-    alert('連接失敗：' + err.message);
-  }
+    updateCurrentCommand();
+  } catch (err) { alert('連接失敗：' + err.message); }
 }
 
 function disconnect() {
@@ -226,93 +279,94 @@ function disconnect() {
   document.getElementById('status').textContent = '已斷開連線';
   document.getElementById('connectBtn').disabled = false;
   document.getElementById('disconnectBtn').disabled = true;
+  updateCurrentCommand();
 }
 
-// ==================== 主動發送設定 (每500ms) ====================
-let sendInterval = null;
 function startSendingLoop() {
   if (sendInterval) clearInterval(sendInterval);
   sendInterval = setInterval(() => {
     if (txChar) {
-      const durationCode = isTraining ? 1 : 0;
-      const msg = `${currentInterval};${durationCode};${currentModeNum}`;
+      const durationStr = isTraining ? 'start' : 'stop';
+      const msg = `${currentInterval};${durationStr};${currentMode}`;
       txChar.writeValue(new TextEncoder().encode(msg + '\n')).catch(() => {});
+      updateCurrentCommand(); // 每次發送都更新顯示
     }
   }, 500);
 }
+
 function stopSendingLoop() {
   if (sendInterval) clearInterval(sendInterval);
+  sendInterval = null;
+  updateCurrentCommand();
 }
 
 // ==================== UI 控制 ====================
 document.getElementById('intervalSlider').oninput = function() {
-  currentInterval = this.value;
+  currentInterval = Number(this.value);
   document.getElementById('intervalNum').textContent = currentInterval;
-  document.getElementById('intervalVal').innerHTML = currentInterval + ' <small style="font-size:0.5em;">ms</small>';
+  document.getElementById('intervalVal').innerHTML = currentInterval + ' <small>ms</small>';
+  updateCurrentCommand();
+  broadcast('state', {currentInterval});
 };
 
 document.getElementById('modeSelect').onchange = function() {
-  currentModeNum = parseInt(this.value);
-  document.getElementById('modeText').textContent = modeMap[currentModeNum];
+  currentMode = this.value;
+  document.getElementById('modeText').textContent = currentMode;
+  updateCurrentCommand();
+  broadcast('state', {currentMode});
 };
 
 document.getElementById('trainBtn').onclick = function() {
   isTraining = !isTraining;
   const btn = this;
   if (isTraining) {
-    btn.textContent = '停止訓練';
-    btn.classList.remove('start');
-    btn.classList.add('stop');
-    serveCount = 0;
-    document.getElementById('serveCount').textContent = '0';
-    timerStart = Date.now();
-    startTimer();
+    btn.textContent = '停止訓練'; btn.className = 'button-5 stop';
+    serveCount = 0; document.getElementById('serveCount').textContent = '0';
+    timerStart = Date.now(); startTimer();
   } else {
-    btn.textContent = '開始訓練';
-    btn.classList.remove('stop');
-    btn.classList.add('start');
-    stopTimer();
-    saveRecord();
+    btn.textContent = '開始訓練'; btn.className = 'button-5 start';
+    stopTimer(); saveRecord();
   }
+  updateCurrentCommand();
+  broadcast('state', {isTraining, serveCount: isTraining ? 0 : serveCount});
 };
 
-document.getElementById('connectBtn').onclick = connect;
-document.getElementById('disconnectBtn').onclick = disconnect;
-
-// ==================== 計時器 ====================
+// ==================== 計時器 & 歷史 ====================
 function startTimer() {
   if (timerInterval) clearInterval(timerInterval);
   timerInterval = setInterval(() => {
     const elapsed = Math.floor((Date.now() - timerStart) / 1000);
-    const h = String(Math.floor(elapsed / 3600)).padStart(2, '0');
-    const m = String(Math.floor((elapsed % 3600) / 60)).padStart(2, '0');
-    const s = String(elapsed % 60).padStart(2, '0');
+    const h = String(Math.floor(elapsed / 3600)).padStart(2,'0');
+    const m = String(Math.floor((elapsed % 3600)/60)).padStart(2,'0');
+    const s = String(elapsed % 60).padStart(2,'0');
     document.getElementById('durationTimer').textContent = `${h}:${m}:${s}`;
   }, 500);
 }
-
 function stopTimer() {
   if (timerInterval) clearInterval(timerInterval);
-  const elapsed = Math.floor((Date.now() - timerStart) / 1000);
-  const h = String(Math.floor(elapsed / 3600)).padStart(2, '0');
-  const m = String(Math.floor((elapsed % 3600) / 60)).padStart(2, '0');
-  const s = String(elapsed % 60).padStart(2, '0');
-  return `${h}:${m}:${s}`;
 }
 
-// ==================== 歷史紀錄 ====================
 function saveRecord() {
   const duration = document.getElementById('durationTimer').textContent;
+  const record = {date: new Date().toLocaleString('zh-TW'), serves: serveCount, interval: currentInterval, duration, mode: currentMode};
+  addRecordAndBroadcast(record);
+}
+
+function addRecordAndBroadcast(record) {
   const records = JSON.parse(localStorage.getItem('serveRecords') || '[]');
-  records.unshift({
-    date: new Date().toLocaleString('zh-TW'),
-    serves: serveCount,
-    interval: currentInterval,
-    duration: duration,
-    mode: modeMap[currentModeNum]
-  });
+  records.unshift(record);
   localStorage.setItem('serveRecords', JSON.stringify(records));
   loadHistory();
+  broadcast('record', {record});
+}
+
+function addRemoteRecord(record) {
+  const records = JSON.parse(localStorage.getItem('serveRecords') || '[]');
+  if (!records.some(r => r.date === record.date && r.serves === record.serves)) {
+    records.unshift(record);
+    localStorage.setItem('serveRecords', JSON.stringify(records));
+    loadHistory();
+  }
 }
 
 function loadHistory() {
@@ -326,7 +380,11 @@ function loadHistory() {
   });
 }
 
+// ==================== 初始化 ====================
+document.getElementById('connectBtn').onclick = connect;
+document.getElementById('disconnectBtn').onclick = disconnect;
 loadHistory();
+updateCurrentCommand(); // 初始顯示
 </script>
 </body>
 </html>
